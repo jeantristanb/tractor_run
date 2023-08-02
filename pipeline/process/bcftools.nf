@@ -38,5 +38,15 @@ process merge_vcf{
    """
    bcftools merge $allfile -m all
    """
+}
 
+process split_bychro{
+ input :
+   tuple tuple(vcf), val(out)
+ output :
+    file("")
+ script :
+   """
+   bcftools index -s in.vcf.gz | cut -f 1 | while read C; do bcftools view -O z -o ${out}.${C}.vcf.gz in.vcf.gz "${C}" ; done
+   """
 }
