@@ -1,19 +1,21 @@
 dirdata=/home
 dirdatai=$PWD/tutorial-data/
+mkdir -p $dirdatai/log
 dldata=0
 if [ $dldata -eq 1 ]
 then
 wget -c https://media.githubusercontent.com/media/Atkinson-Lab/Tractor-tutorial/main/tutorial-data.zip && unzip tutorial-data.zip
 fi
-balisecheck=0
+balisecheck=1
 if [ $balisecheck -eq 1 ]
 then
 docker run -v $PWD/tutorial-data/:/home/  -it tractor_run   sh -c "shapeit -check \
         --input-vcf $dirdata/ADMIX_COHORT/ASW.unphased.vcf.gz \
         --input-map $dirdata/HAP_REF/chr22.genetic.map.txt \
         --input-ref $dirdata/HAP_REF/chr22.hap.gz $dirdata/HAP_REF/chr22.legend.gz $dirdata/HAP_REF/ALL.sample \
-        --output-log $dirdata/"
+        --output-log $dirdata/log/log"
 fi
+exit
 
 balisephased=0
 if [ $balisephased -eq 1 ]
