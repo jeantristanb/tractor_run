@@ -1,4 +1,3 @@
-
 process shapeit_check{
  cpus params.cpus_shapeit
  memory { strmem(params.memory_shapeit) + 5.GB * (task.attempt -1) }

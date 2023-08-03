@@ -5,26 +5,43 @@ process intersect_pos{
   output :
     tuple val(chro), path(filintersect)
 script :
+ chro=chro.replace('\n','')
  allfile=allfile.join(' ')   
- fileintersect="shared_"
+ fileintersect="shared_${chro}"
  """
- bcftools isec -n~11 -c all vcfA.vcf.gz vcfB.vcf.gz > 
+ bcftools isec -n~11 -c all `ls *.vcf.gz` > $fileintersect
  """
 }
 
+process extractpos{
+  input : 
+    tuple val(chro), path(vcf), path(vcfindex), path(listpos)
+  output :
+    tuple val(chro), path(vcf), path("${fileout}.csi")
+script :
+ chro=chro.replace('\n','')
+ fileout=filevcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_clean_'+chro+'.vcf.gz'
+ """
+ bcftools view -R $listpos $vcf > $fileout
+ bcftools index $fileout
+ """
+}
+
+
 process indexsort_vcf {
+  cpus 3
   input :
      tuple val(chro),file(filevcf)
   //publishDir "${params.output_dir}/vcffilt/", overwrite:true, mode:'copy'
   output :
-     set file("${fileout}.gz"), file("${fileout}.gz.csi") 
+     tuple val(chro), path("${fileout}"), path("${fileout}.csi") 
   script :
-      fileout=filevcf.replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_sort_'+chro+'.vcf.gz'
+      chro=chro.replace('\n','')
+      fileout=filevcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_sort_'+chro+'.vcf.gz'
       logfilt="${params.output}_filter.log"
       """
-      #check_vcf.py --vcf $filevcf --out vcftmp.vcf > $logfilt
-      ${params.bin_bcftools} sort  $filevcf | bgzip -c > $fileout".gz"
-      ${params.bin_bcftools} index $fileout".gz"
+      check_vcf.py --vcf $filevcf | ${params.bin_bcftools} sort | bgzip -c > $fileout
+      ${params.bin_bcftools} index $fileout
       """
 }
 
@@ -32,21 +49,47 @@ process merge_vcf{
   input :
    tuple val(chro), path(allfile)
   output :
-      tuple val(chro), path(mergefile)
+      tuple val(chro),  path("${finalvcf}"), path("${finalvcf}.csi")
   script :
+   chro=chro.replace('\n','')
    allfile=allfile.join(' ')
+   finalvcf=params.output+"_"+chro+".vcf.gz"
    """
-   bcftools merge $allfile -m all
+   ${params.bin_bcftools}  merge `ls *.vcf.gz` -m all -O z -o $finalvcf
+   ${params.bin_bcftools} index $finalvcf
    """
+}
+
+process index_vcf{
+ input :
+   tuple val(chro), path(vcf)
+ output :
+   tuple val(chro), path(vcf), path("${vcf}.*"), emit : out
+   tuple path(vcf), path("${vcf}.*"), emit : outnochro
+ script :
+    """
+    ${params.bin_bcftools} index $vcf
+    """
+}
+
+process get_chro {
+ input :
+   tuple val(chro), path(vcf), path(vcfindex)
+ output :
+   stdout
+ """
+ ${params.bin_bcftools}  index -s $vcf | cut -f 1 
+ """
 }
 
 process split_bychro{
  input :
-   tuple tuple(vcf), val(out)
+   tuple val(chro),path(vcf), path(vcfindex),val(out)
+ publishDir "${params.output_dir}/splitbychro/", overwrite:true, mode:'copy'
  output :
-    file("")
+    tuple val(chro),path("${out}.${chro}.vcf.gz")
  script :
    """
-   bcftools index -s in.vcf.gz | cut -f 1 | while read C; do bcftools view -O z -o ${out}.${C}.vcf.gz in.vcf.gz "${C}" ; done
+   ${params.bin_bcftools}  view -O z -o ${out}.${chro}.vcf.gz ${vcf} ${chro}
    """
 }
