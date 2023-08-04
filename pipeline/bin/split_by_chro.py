@@ -34,43 +34,45 @@ def parseArguments():
     parser = argparse.ArgumentParser(description='fill in missing bim values')
     parser.add_argument('--out',type=str,required=False, default='stdout')
     parser.add_argument('--vcf',type=str,required=True, default='stdin')
+    parser.add_argument('--chr',type=str,required=True)
     args = parser.parse_args()
     return args
 
 
 args = parseArguments()
 typehead=args.vcf.split('.')[-1]
+chro=args.chr
 readgz=False
 if typehead=='gz' or typehead=='gzip':
   readgz=True
 
 headervcf=GetHeaderVcf(args.vcf)
+newheadervcf=[]
 contignb=0
 for x in headervcf :
   if "##contig" in x :
-     contignb+=1
+      chrom=x.split('ID=')[1].split(',')[0].split(' ')[0]
+      if chrom==chro :
+         newheadervcf.append(x)
+         contignb=1
+  else :
+    newheadervcf.append(x)
 
-if contignb ==0: 
- if readgz :
-  readvcf=gzip.open(args.vcf)
- else :
-  readvcf=open(args.vcf)
- listchr=set([])
- for x in readvcf :
-     x=x.decode().split('\t')[0]
-     if x[0][0]!='#':
-      listchr.add(x[0])
- readvcf.close()
- oldheader=headervcf
+oldheader=headervcf
+if contignb==0: 
  headervcf=headervcf[0:1] 
- headervcf+=["##contig=<ID="+x+">" for x in listchr]
- headervcf+=headervcf[1::] 
+ headervcf+=["##contig=<ID="+chro+">"]
+ headervcf+=oldheader[1::] 
 
 ###FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 balisegt=False
+cmt=0
 for x in headervcf :
-  if "FORMAT" in x and "ID=GT" in x :
+  ###FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+  if "FORMAT" in x and "=GT" in x :
+    headervcf[cmt]='##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">'
     balisegt=True 
+  cmt+=1
 
 if balisegt==False :
     newlistheader=headervcf[0:1]
@@ -105,6 +107,8 @@ for line in readvcf :
       line=line.decode()
   if line[0]!="#" :
    spll=line.split()
+   if spll[0]!=chro :
+      continue
    if len(spll)!=NCol :
       writereport.write("\t".join(spll[0:5])+"not good size")
    elif checkrefalt(spll)==False :

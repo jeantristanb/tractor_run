@@ -23,11 +23,15 @@ import sun.nio.fs.UnixPath;
 import java.security.MessageDigest;
 
 params.merge_vcf = '' 
+params.keep_ind=''
+params.phased_data=''
 //params.file_listvcf=''
 
 
 include {split_by_chro} from './workflow/split_by_chro.nf'
 include {addchro} from './process/vcf.nf'
+include {index_vcf} from './process/bcftools.nf'
+include {clean_ind} from './process/bcftools.nf'
 include {mergevcf} from './workflow/merge_vcf.nf'
 
 filescript=file(workflow.scriptFile)
@@ -41,22 +45,28 @@ workflow {
   }
   if(params.merge_vcf!=''){
      listfilevcf=params.merge_vcf.split(',') 
-     //Channel.fromPath(file(listfilevcf[0], checkIfExists:true).readLines()).collect()
-     //println listfilevcf[0]
      list_vcf=[]
-     //println listfilevcf
      for(cmt=0;cmt<listfilevcf.size();cmt++){
      list_vcf+=file(listfilevcf[cmt], checkIfExists:true).readLines()
      }
-     println listfilevcf
-     addchro(Channel.fromPath(list_vcf))
+     addchro(Channel.fromPath(list_vcf, checkIfExists:true))
      mergevcf(addchro.out) 
-     //vcf_chro=addchro.out.groupTuple()
-     //list_vcf1=addchro(Channel.fromPath(file(listfilevcf, checkIfExists:true).readLines(), checkIfExists:true))
      cmt=1
-     //   list_vcf2=addchro2(Channel.fromPath(file(listfilevcf[cmt], checkIfExists:true).readLines(), checkIfExists:true))
   }
+  if(params.phased_data!=''){
+     if(params.merge_vcf==''){
+        index_vcf(addchro(Channel.fromPath(file(listfilevcf[cmt], checkIfExists:true).readLines())))
+        list_vcf_tophased=index_vcf.out.out
+     }else{
+        list_vcf_tophased=mergevcf.out
+     }
+   if(params.keep_ind){
 
+   }else{
+    list_vcf_clean=list_vcf_tophased
+   }
+   shapeit_phase(list_vcf_tophased.combine(Channel.fromPath(params.genetics_map)))
+  }
 
 }
 

@@ -1,15 +1,17 @@
 
 process intersect_pos{
   input :
-    tuple val(chro), path(allfile)
+    tuple val(chro), path(allfile), path(allfileindex)
   output :
-    tuple val(chro), path(filintersect)
+    tuple val(chro), path("$fileintersect")
+publishDir "${params.output_dir}/intersect/", overwrite:true, mode:'copy'
 script :
  chro=chro.replace('\n','')
+ nfile=allfile.size()
  allfile=allfile.join(' ')   
  fileintersect="shared_${chro}"
  """
- bcftools isec -n~11 -c all `ls *.vcf.gz` > $fileintersect
+ bcftools isec -n $nfile -c all `ls *.vcf.gz` > $fileintersect
  """
 }
 
@@ -17,12 +19,12 @@ process extractpos{
   input : 
     tuple val(chro), path(vcf), path(vcfindex), path(listpos)
   output :
-    tuple val(chro), path(vcf), path("${fileout}.csi")
+    tuple val(chro), path("$fileout"), path("${fileout}.csi")
 script :
  chro=chro.replace('\n','')
- fileout=filevcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_clean_'+chro+'.vcf.gz'
+ fileout=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_clean_vcf.gz'
  """
- bcftools view -R $listpos $vcf > $fileout
+ bcftools view -R $listpos $vcf -O z -o $fileout
  bcftools index $fileout
  """
 }
@@ -34,7 +36,8 @@ process indexsort_vcf {
      tuple val(chro),file(filevcf)
   //publishDir "${params.output_dir}/vcffilt/", overwrite:true, mode:'copy'
   output :
-     tuple val(chro), path("${fileout}"), path("${fileout}.csi") 
+    tuple val(chro), path(fileout), path("${fileout}.*"), emit : out
+    tuple path(fileout), path("${fileout}.*"), emit : outnochro
   script :
       chro=chro.replace('\n','')
       fileout=filevcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_sort_'+chro+'.vcf.gz'
@@ -47,15 +50,16 @@ process indexsort_vcf {
 
 process merge_vcf{
   input :
-   tuple val(chro), path(allfile)
+   tuple val(chro), path(allfile), path(allfileindex)
   output :
       tuple val(chro),  path("${finalvcf}"), path("${finalvcf}.csi")
+  publishDir "${params.output_dir}/merge/", overwrite:true, mode:'copy'
   script :
    chro=chro.replace('\n','')
    allfile=allfile.join(' ')
    finalvcf=params.output+"_"+chro+".vcf.gz"
    """
-   ${params.bin_bcftools}  merge `ls *.vcf.gz` -m all -O z -o $finalvcf
+   ${params.bin_bcftools}  merge $allfile -m all -O z -o $finalvcf
    ${params.bin_bcftools} index $finalvcf
    """
 }
@@ -93,3 +97,15 @@ process split_bychro{
    ${params.bin_bcftools}  view -O z -o ${out}.${chro}.vcf.gz ${vcf} ${chro}
    """
 }
+
+
+process clean_ind {
+ input : 
+   tuple val(chro), path(vcf), path(index), path(ind)
+ output :
+   fileout=filevcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_cleanind.vcf.gz'
+   """
+   ${params.bin_bcftools} view --samples-file $ind --write-index -o $fileout ${vcf} 
+   """
+}
+

@@ -9,8 +9,10 @@ workflow mergevcf{
     listvcf
   main :
      indexsort_vcf(listvcf)
-     intersect_pos(indexsort_vcf.out.groupTuple())
-     extractpos(listvcf.combine(intersect_pos.out,by: 0))
+     intersect_pos(indexsort_vcf.out.out.groupTuple())
+     extractpos(indexsort_vcf.out.out.combine(intersect_pos.out,by: 0))
      merge_vcf(extractpos.out.groupTuple())
+   emit :
+     vcf= merge_vcf.out
 
 }
