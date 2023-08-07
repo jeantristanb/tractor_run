@@ -19,7 +19,7 @@ process split_bychro {
       chro=chro.replace('\n','')
       newvcf=params.output+'_'+chro+'.vcf.gz'
       """
-      split_by_chro.py --vcf agv.vcf.gz --chr $chro | bcftools sort | bgzip -c > $newvcf
+      split_by_chro.py --vcf $vcf --chr $chro | bcftools sort | bgzip -c > $newvcf
       bcftools index $newvcf
       """
 }
@@ -32,6 +32,18 @@ process get_chro {
  """
  zcat $vcf|grep -v "#"|awk '{print \$1}'|uniq|sort|uniq
  """
+}
+
+process extract_pos {
+  input:
+   tuple val(chro),path(vcf), path(vcfindex)
+  output :
+   tuple val(chro), path(outchrbp)
+ script :
+  outchrbp=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'.pos'
+  """
+  zcat $vcf |grep -v "#" |awk '{print \$1"\t"\$2}' > $outchrbp
+  """
 }
 
 

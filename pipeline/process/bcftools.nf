@@ -99,13 +99,45 @@ process split_bychro{
 }
 
 
-process clean_ind {
+process clean_vcf_phased {
  input : 
-   tuple val(chro), path(vcf), path(index), path(ind)
+   tuple val(chro), path(vcf), path(index), path(ind), path(snp)
  output :
-   fileout=filevcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_cleanind.vcf.gz'
+    tuple val(chro), path("$fileout"), path("${fileout}.csi")
+ script : 
+   fileout=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_clean.vcf.gz'
+   keepind=(ind!='01') ? " --samples-file $ind " : ""
+   keeppos=(snp!='02') ? " -R $snp " : ""
    """
-   ${params.bin_bcftools} view --samples-file $ind --write-index -o $fileout ${vcf} 
+   ${params.bin_bcftools} view $keepind $keeppos  --max-alleles 2 -Oz -o $fileout ${vcf} 
+   ${params.bin_bcftools} index $fileout
+
+   """
+}
+
+process flip_ref{
+ input:
+    tuple val(chro), path(vcf), path(index), path(fasta)
+ output :
+    tuple val(chro),path("$fileout"), path("${fileout}.csi")
+ script : 
+   fileout=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_fr.vcf.gz'
+   """
+     ${params.bin_bcftools} +fixref  $vcf -Oz -o $fileout -- -f $fasta -m flip -d  &> $fileout".rep" 
+     ${params.bin_bcftools} index $fileout
+   """
+}
+
+process checkref{
+ input:
+    tuple val(chro), path(vcf), path(index), path(fasta)
+ output :
+    tuple val(chro),path("$fileout"), path("${fileout}.csi")
+ script :
+   fileout=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_fr.vcf.gz'
+   """
+     ${params.bin_bcftools} +fixref  $vcf -Oz -o $fileout -- -f $fasta -m flip -d  &> $fileout".rep"
+     ${params.bin_bcftools} index $fileout
    """
 }
 

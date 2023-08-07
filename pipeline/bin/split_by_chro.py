@@ -6,6 +6,16 @@ import os
 import sys
 import glob
 import gzip
+
+def getkey(spll) :
+  key=spll[0]+'_'+spll[1]
+  if spll[3] > spll[4] :
+    key=key+'_'+spll[3]+'_'+spll[4]
+  else :
+    key=key+'_'+spll[4]+'_'+spll[3]
+  return key
+
+
 def GetHeaderVcf(File):
     if readgz :
       VcfRead=gzip.open(File,'rb')
@@ -101,6 +111,8 @@ if args.out == 'stdout' :
 else :
   writevcf=open(args.out, 'w')
 
+listkey=set([])
+
 writevcf.write('\n'.join(newlistheader)+'\n')
 for line in readvcf :
   if readgz :
@@ -109,9 +121,14 @@ for line in readvcf :
    spll=line.split()
    if spll[0]!=chro :
       continue
-   if len(spll)!=NCol :
+   key=getkey(spll)
+   if key in listkey :
+      writereport.write("\t".join(spll[0:5])+" duplicate chr bp ref alt ")
+   elif len(spll)!=NCol :
       writereport.write("\t".join(spll[0:5])+"not good size")
    elif checkrefalt(spll)==False :
         writereport.write(spll[1]+" "+spll[2]+": in ref "+spll[3]+" and alt "+spll[4])
    else :
        writevcf.write(line) 
+       listkey.add(key)
+
