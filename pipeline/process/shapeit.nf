@@ -37,15 +37,15 @@ process shapeit_phase{
  cpus params.cpus_shapeit
  memory { strmem(params.memory_shapeit) + 5.GB * (task.attempt -1) }
  input :
-   tuple val(chro),file(filevcf), file(filevcfidx), file(genet_map),val(outputname), val(outputdir)
+   tuple val(chro),file(filevcf), file(filevcfidx), file(genet_map),val(outputdir), val(outputname)
  publishDir "${outputdir}/", overwrite:true, mode:'copy'
  output :
    tuple path("${headout}.haps"), path("${headout}.sample"),emit : sample
    path("${headout}*"), emit : log
  script :
-   headout="${output}_${chro}_phaseshapeit"
+   headout="${outputname}_${chro}_phaseshapeit"
    """
-   ${params.bin_shapeit} -V $filevcf --input-map $genet_map --input-thr ${params.thr_shapeit} --output-max $headout".haps" $headout".sample" --thread ${params.cpus_shapeit}  --force
+   ${params.bin_shapeit} -V $filevcf --input-map $genet_map --input-thr ${params.thr_miss_shapeit} --output-max $headout".haps" $headout".sample" --thread ${params.cpus_shapeit}  --force
    """
 }
 
@@ -55,7 +55,7 @@ process shapeit_phase_withref{
  cpus params.cpus_shapeit
  memory { strmem(params.memory_shapeit) + 5.GB * (task.attempt -1) }
  input :
-   tuple val(chro),file(filevcf), file(filevcfidx), file(genet_map), file(ref), file(ind),val(outputname), val(outputdir)
+   tuple val(chro),file(filevcf), file(filevcfidx), file(genet_map), file(ref), file(ind),val(outputdir), val(outputname)
  publishDir "${outputdir}/", overwrite:true, mode:'copy'
  output :
    tuple path("${headout}.haps"), path("${headout}.sample"), emit : sample
@@ -67,7 +67,18 @@ process shapeit_phase_withref{
   //    --input-ref HAP_REF/chr22.hap.gz HAP_REF/chr22.legend.gz HAP_REF/ALL.sample \
   //    -O ADMIX_COHORT/ASW.phased 
    """
-   ${params.bin_shapeit} -V $filevcf --input-map $genet_map  --input-ref $ref $ind --thread ${params.cpus_shapeit}  -O $headout
+   ${params.bin_shapeit} -V $filevcf --input-map $genet_map  --input-ref $ref $ind --thread ${params.cpus_shapeit}  -O $headout --input-thr ${params.thr_miss_shapeit}
    """
 }
 
+process extract_pos{
+   input :
+     tuple val(chro), file(map)
+   output :
+     tuple val(chro), file(pos)
+   script :
+      headout=map.baseName+'.pos'
+      """
+      sed '1d' $map | awk '{print \$1"\t"\$2}' > $headout
+      """
+}

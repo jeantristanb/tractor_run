@@ -67,8 +67,8 @@ workflow {
      for(cmt=0;cmt<listfilevcf.size();cmt++){
      list_vcf+=file(listfilevcf[cmt], checkIfExists:true).readLines()
      }
-     addchro(Channel.fromPath(list_vcf, checkIfExists:true))
-     mergevcf_ref(addchro.out) 
+     addchro_ref(Channel.fromPath(list_vcf, checkIfExists:true))
+     mergevcf_ref(addchro_ref.out) 
   }
 
   if(params.sample_tomerge_vcf!=''){
@@ -103,7 +103,8 @@ workflow {
       list_refsample=phased_data_ref.out
      }else{
        addchro_other(Channel.fromPath(file(params.ref_phased, checkIfExists:true).readLines(), checkIfExists:true))
-       list_refsample=addchro_other.out
+       list_refsample=addchro_other.out.combine(channel.fromPath(params.ref_phased_ind))
+       list_refsample.view()
      }
      phased_data_sample(list_vcf_tophased,params.ref_keep_ind, listgenetic_map,list_refsample, channel.from("${params.output_dir}/sample/phased/"), channel.from("sample_phased"))
   }

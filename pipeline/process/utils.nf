@@ -6,10 +6,10 @@ process addchro{
  input :
      file(File)
  output :
-     tuple env(chro), file(File)
+     tuple stdout, file(File)
  script :
    """
-   chro=`head $File |tail -1 |awk '{print \$1}'`
+   head $File |tail -1 |awk '{print \$1}'
    """ 
 }
 

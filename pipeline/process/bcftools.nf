@@ -11,7 +11,7 @@ script :
  allfile=allfile.join(' ')   
  fileintersect="shared_${chro}"
  """
- bcftools isec -n $nfile -c all `ls *.vcf.gz` > $fileintersect
+ ${params.bin_bcftools}  isec -n $nfile -c all `ls *.vcf.gz` > $fileintersect
  """
 }
 
@@ -24,8 +24,8 @@ script :
  chro=chro.replace('\n','')
  fileout=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_clean_vcf.gz'
  """
- bcftools view -R $listpos $vcf -O z -o $fileout
- bcftools index $fileout
+ ${params.bin_bcftools}  view -R $listpos $vcf -O z -o $fileout
+ ${params.bin_bcftools}  index $fileout
  """
 }
 
@@ -106,8 +106,8 @@ process clean_vcf_phased {
     tuple val(chro), path("$fileout"), path("${fileout}.csi")
  script : 
    fileout=vcf.toString().replaceAll(/.gz$/,'').replaceAll(/.vcf$/,'')+'_clean.vcf.gz'
-   keepind=(ind!='01') ? " --samples-file $ind " : ""
-   keeppos=(snp!='02') ? " -R $snp " : ""
+   keepind=(ind.toString()!='01') ? " --samples-file $ind " : ""
+   keeppos=(snp.toString()!='02') ? " -R $snp " : ""
    """
    ${params.bin_bcftools} view $keepind $keeppos  --max-alleles 2 -Oz -o $fileout ${vcf} 
    ${params.bin_bcftools} index $fileout
