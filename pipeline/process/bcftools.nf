@@ -1,18 +1,18 @@
 
 process intersect_pos{
   input :
-    tuple val(chro), path(allfile), path(allfileindex)
+    tuple val(chro), path(allfile), path(allfileindex), val(outputdir)
   output :
     tuple val(chro), path("$fileintersect")
-publishDir "${params.output_dir}/intersect/", overwrite:true, mode:'copy'
-script :
- chro=chro.replace('\n','')
- nfile=allfile.size()
- allfile=allfile.join(' ')   
- fileintersect="shared_${chro}"
- """
- ${params.bin_bcftools}  isec -n $nfile -c all `ls *.vcf.gz` > $fileintersect
- """
+  publishDir "${outputdir}/intersect/", overwrite:true, mode:'copy'
+ script :
+  chro=chro.replace('\n','')
+  nfile=allfile.size()
+  allfile=allfile.join(' ')   
+  fileintersect="shared_${chro}"
+  """
+  ${params.bin_bcftools}  isec -n $nfile -c all `ls *.vcf.gz` > $fileintersect
+  """
 }
 
 process extractpos{
@@ -50,14 +50,14 @@ process indexsort_vcf {
 
 process merge_vcf{
   input :
-   tuple val(chro), path(allfile), path(allfileindex)
+   tuple val(chro), path(allfile), path(allfileindex), val(outputdir), val(outputname)
   output :
       tuple val(chro),  path("${finalvcf}"), path("${finalvcf}.csi")
-  publishDir "${params.output_dir}/merge/", overwrite:true, mode:'copy'
+  publishDir "${params.output_dir}/$outputdir/", overwrite:true, mode:'copy'
   script :
    chro=chro.replace('\n','')
    allfile=allfile.join(' ')
-   finalvcf=params.output+"_"+chro+".vcf.gz"
+   finalvcf=outputname+"_"+chro+".vcf.gz"
    """
    ${params.bin_bcftools}  merge $allfile -m all -O z -o $finalvcf
    ${params.bin_bcftools} index $finalvcf

@@ -40,7 +40,7 @@ process shapeit_phase{
    tuple val(chro),file(filevcf), file(filevcfidx), file(genet_map),val(outputdir), val(outputname)
  publishDir "${outputdir}/", overwrite:true, mode:'copy'
  output :
-   tuple path("${headout}.haps"), path("${headout}.sample"),emit : sample
+   tuple val(chro),path("${headout}.haps"), path("${headout}.sample"),emit : sample
    path("${headout}*"), emit : log
  script :
    headout="${outputname}_${chro}_phaseshapeit"
@@ -58,7 +58,7 @@ process shapeit_phase_withref{
    tuple val(chro),file(filevcf), file(filevcfidx), file(genet_map), file(ref), file(ind),val(outputdir), val(outputname)
  publishDir "${outputdir}/", overwrite:true, mode:'copy'
  output :
-   tuple path("${headout}.haps"), path("${headout}.sample"), emit : sample
+   tuple val(chro),path("${headout}.haps"), path("${headout}.sample"), emit : sample
    path("${headout}*"), emit : log
  script :
    headout="${outputname}_${chro}_phaseshapeit"
@@ -81,4 +81,43 @@ process extract_pos{
       """
       sed '1d' $map | awk '{print \$1"\t"\$2}' > $headout
       """
+}
+
+process convert_vcf_inhaps{
+ input :
+    tuple val(chro),path(vcf), val(outputdir), val(outputname)
+ publishDir "${outputdir}/", overwrite:true, mode:'copy'
+ output :
+   tuple val(chro), val("${outputname}.haps"), val("${outputname}.sample")
+ script :
+  output="${output}_${chro}"
+  """
+  ${params.bin_shapeit} -convert  --input-vcf $vcf --output-haps $output
+  """
+}
+
+process convert_haps_invcf {
+   input :
+     tuple val(chro), path(haps), path(sample), val(outputdir), val(outputname)
+   publishDir "${outputdir}/", overwrite:true, mode:'copy'
+   output :
+     tuple val(chro), path("${vcf}.gz"), path("${vcf}.gz.csi")
+   script :
+   headbasename=haps.baseName
+   vcf="${outputname}_${chro}_phased.vcf"
+   """
+   ${params.bin_shapeit} -convert --input-haps $headbasename   --output-vcf $vcf
+   bgzip $vcf -c > $vcf".gz"
+   ${params.bin_bcftools} index $vcf".gz"
+   """
+}
+process addchro {
+  input :
+      path(haps)
+  output :
+      tuple stdout ,path(haps)
+  script :
+    """
+    head $haps |tail -1 |awk '{print \$1}'
+    """ 
 }
